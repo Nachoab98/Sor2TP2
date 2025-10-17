@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis Interactivo de Vulnerabilidades - TP2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Tech Report Blue -->
+    <!-- Application Structure Plan: La aplicación sigue una narrativa lineal que guía al usuario a través del proceso de ciberseguridad: 1) Introducción al problema y al objetivo. 2) Visualización del proceso de 'fuzzing'. 3) Presentación interactiva de las vulnerabilidades encontradas. 4) Comparación directa de la solución (código antes/después). 5) Conclusiones balanceadas. Esta estructura temática es más atractiva y didáctica que la estructura de capítulos del informe original, facilitando la comprensión del ciclo completo de detección y corrección de errores. -->
+    <!-- Visualization & Content Choices: 1. Proceso de Fuzzing -> Goal: Explicar flujo -> Viz: Diagrama con HTML/CSS -> Interaction: Hover para detalles -> Justification: Simplifica un proceso técnico. 2. Tipos de Vulnerabilidades -> Goal: Detallar hallazgos -> Viz: Gráfico de barras (Chart.js) y tarjetas interactivas -> Interaction: Clic en tarjetas para ver código y detalles -> Justification: Permite al usuario explorar los errores a su propio ritmo. 3. Solución -> Goal: Mostrar la mejora -> Viz: Comparación lado a lado de código -> Interaction: No se necesita, la comparación es directa -> Justification: Es la forma más clara de demostrar el impacto de la corrección. 4. Conclusión -> Goal: Resumir pros/contras -> Viz: Columnas con iconos -> Justification: Facilita una rápida comprensión de los resultados. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .nav-link {
+            transition: color 0.3s ease;
+        }
+        .nav-link.active, .nav-link:hover {
+            color: #3b82f6;
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .code-block {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .details-content {
+            display: none;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+            max-height: 0;
+        }
+        .details-content.show {
+            display: block;
+            max-height: 500px;
+        }
+        .section-icon {
+            font-size: 2.5rem;
+            line-height: 1;
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <header class="bg-white/80 backdrop-blur-lg fixed top-0 left-0 right-0 z-10 shadow-sm">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex items-center justify-between h-16">
+                <div class="text-lg font-bold text-slate-800">
+                    <span class="text-blue-500">TP2</span> / Análisis de Vulnerabilidades
+                </div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="#intro" class="nav-link font-medium text-slate-600">Introducción</a>
+                    <a href="#proceso" class="nav-link font-medium text-slate-600">Proceso</a>
+                    <a href="#hallazgos" class="nav-link font-medium text-slate-600">Hallazgos</a>
+                    <a href="#solucion" class="nav-link font-medium text-slate-600">Solución</a>
+                    <a href="#conclusion" class="nav-link font-medium text-slate-600">Conclusión</a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="pt-24">
+        <section id="intro" class="py-16 sm:py-20">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900">Detección de Vulnerabilidades de Desbordamiento</h1>
+                <p class="mt-6 text-lg text-slate-600 max-w-3xl mx-auto">Un análisis práctico sobre cómo la técnica de <span class="font-semibold text-blue-600">Fuzzing</span> puede descubrir fallos críticos de seguridad en software y cómo solucionarlos para crear aplicaciones más robustas y seguras.</p>
+                <div class="mt-8 text-sm text-slate-500">
+                    <p><strong>Autores:</strong> Aranda Bao, Ignacio | Avalos, Lautaro Manuel | Moyano San Martin, Ignacio</p>
+                    <p><strong>Institución:</strong> Universidad Nacional de General Sarmiento</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="proceso" class="py-16 sm:py-20 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                     <div class="section-icon text-blue-500 mb-4 mx-auto">🔬</div>
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900">El Proceso de Caza de Errores</h2>
+                    <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">Para encontrar las vulnerabilidades, se implementó un proceso automatizado. Este flujo de trabajo sistemático permite probar el programa miles de veces con datos impredecibles, revelando errores que las pruebas manuales no detectarían.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                    <div class="flex flex-col items-center">
+                        <div class="bg-blue-100 text-blue-600 rounded-full p-4 text-3xl mb-4">❶</div>
+                        <h3 class="text-xl font-semibold mb-2">Generación de Entradas</h3>
+                        <p class="text-slate-600">Se utilizó la herramienta <span class="font-semibold">Radamsa</span> para generar automáticamente datos de entrada aleatorios y malformados a partir de un caso base.</p>
+                    </div>
+                    
+                    <div class="flex flex-col items-center">
+                        <div class="bg-blue-100 text-blue-600 rounded-full p-4 text-3xl mb-4">❷</div>
+                        <h3 class="text-xl font-semibold mb-2">Ejecución Automatizada</h3>
+                        <p class="text-slate-600">Un script (`fuzzer.sh`) ejecutaba el programa vulnerable (`insert.c`) en un bucle, alimentándolo con las entradas de Radamsa y registrando cualquier <span class="font-semibold">"crash"</span> o fallo.</p>
+                    </div>
+
+                    <div class="flex flex-col items-center">
+                        <div class="bg-blue-100 text-blue-600 rounded-full p-4 text-3xl mb-4">❸</div>
+                        <h3 class="text-xl font-semibold mb-2">Análisis de Fallos</h3>
+                        <p class="text-slate-600">Cada "crash" fue analizado con el depurador <span class="font-semibold">GDB</span> para identificar la causa raíz del error, como una violación de segmento o un aborto del programa.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="hallazgos" class="py-16 sm:py-20">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                 <div class="text-center mb-12">
+                    <div class="section-icon text-red-500 mb-4 mx-auto">💥</div>
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900">Hallazgos Críticos: Las Vulnerabilidades</h2>
+                    <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">El proceso de Fuzzing reveló múltiples fallos de seguridad graves, todos relacionados con una gestión incorrecta de la memoria. A continuación se muestra un resumen de los tipos de errores encontrados y su distribución.</p>
+                </div>
+                
+                <div class="flex flex-wrap -mx-4">
+                    <div class="w-full lg:w-1/2 px-4 mb-8 lg:mb-0">
+                        <h3 class="text-xl font-semibold text-center mb-4">Distribución de Tipos de Fallo</h3>
+                         <div class="chart-container bg-white p-4 rounded-lg shadow-md">
+                            <canvas id="vulnerabilitiesChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="w-full lg:w-1/2 px-4">
+                        <h3 class="text-xl font-semibold text-center mb-4">Detalle de Vulnerabilidades (Haz clic para expandir)</h3>
+                        <div id="vulnerabilities-list" class="space-y-4">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="solucion" class="py-16 sm:py-20 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <div class="section-icon text-green-500 mb-4 mx-auto">🛡️</div>
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900">La Solución: Hacia un Código Seguro</h2>
+                    <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">Para corregir los fallos, el programa fue reescrito (`insert3.c`) siguiendo prácticas de programación segura. La clave fue reemplazar funciones inseguras y añadir validaciones estrictas en cada paso.</p>
+                </div>
+
+                <div class="bg-slate-100 p-6 rounded-lg">
+                    <h3 class="text-2xl font-semibold mb-4 text-center">Comparativa Clave: Lectura de Datos</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-bold text-lg mb-2 text-red-600 text-center">🔴 Antes: Código Vulnerable (`insert.c`)</h4>
+                            <div class="code-block p-4 rounded-md text-sm">
+                                <pre><code>// Pide al usuario que ingrese texto
+printf("Enter some text\n");
+// La función gets() es peligrosa.
+// No comprueba el tamaño del buffer y
+// puede causar un desbordamiento.
+gets(text);</code></pre>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-lg mb-2 text-green-600 text-center">🟢 Después: Código Seguro (`insert3.c`)</h4>
+                            <div class="code-block p-4 rounded-md text-sm">
+                                <pre><code>// Pide al usuario que ingrese texto
+printf("Enter some text\n");
+// Usamos una función segura que utiliza
+// fgets() para leer la entrada, limitando
+// la cantidad de caracteres al tamaño
+// del buffer y evitando desbordamientos.
+safe_read(text, sizeof(text));</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                 <div class="text-center mt-12">
+                    <h3 class="text-2xl font-semibold mb-4">Resultado del Fuzzing Post-Corrección</h3>
+                    <div class="flex justify-center items-center gap-8">
+                        <div class="text-center">
+                            <div class="text-5xl mb-2">📂💥</div>
+                            <p class="font-semibold text-red-600">`insert.c` generó cientos de reportes de error.</p>
+                        </div>
+                        <div class="text-5xl font-bold text-slate-400">→</div>
+                        <div class="text-center">
+                            <div class="text-5xl mb-2">📁✨</div>
+                            <p class="font-semibold text-green-600">`insert3.c` no produjo ningún error grave.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="conclusion" class="py-16 sm:py-20">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                 <div class="text-center mb-12">
+                    <div class="section-icon text-slate-500 mb-4 mx-auto">⚖️</div>
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900">Conclusión: El Balance de la Seguridad</h2>
+                    <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">La corrección de vulnerabilidades es fundamental, pero también introduce ciertas contrapartidas. Es un equilibrio entre robustez, complejidad y tiempo de desarrollo.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-bold text-green-600 mb-4">Ventajas de la Versión Corregida</h3>
+                        <ul class="space-y-3 text-slate-700">
+                            <li class="flex items-start"><span class="text-green-500 mr-3 mt-1">✓</span><div><strong class="font-semibold">Seguridad y Estabilidad:</strong> Eliminación completa de *crashes* y accesos ilegales a memoria.</div></li>
+                            <li class="flex items-start"><span class="text-green-500 mr-3 mt-1">✓</span><div><strong class="font-semibold">Robustez:</strong> El programa ahora maneja correctamente entradas maliciosas o inesperadas sin fallar.</div></li>
+                            <li class="flex items-start"><span class="text-green-500 mr-3 mt-1">✓</span><div><strong class="font-semibold">Metodología Profesional:</strong> El uso de Fuzzing y GDB establece un proceso de prueba reproducible y eficaz.</div></li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-bold text-amber-600 mb-4">Desventajas y Contrapartidas</h3>
+                        <ul class="space-y-3 text-slate-700">
+                            <li class="flex items-start"><span class="text-amber-500 mr-3 mt-1">⚠️</span><div><strong class="font-semibold">Mayor Complejidad:</strong> El código aumenta de tamaño y las validaciones añaden ramificaciones lógicas.</div></li>
+                            <li class="flex items-start"><span class="text-amber-500 mr-3 mt-1">⚠️</span><div><strong class="font-semibold">Tiempo de Desarrollo:</strong> El proceso de prueba y depuración es significativamente más largo que el desarrollo inicial.</div></li>
+                            <li class="flex items-start"><span class="text-amber-500 mr-3 mt-1">⚠️</span><div><strong class="font-semibold">Rendimiento:</strong> Las comprobaciones adicionales en tiempo de ejecución introducen una sobrecarga mínima de recursos.</div></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-slate-800 text-slate-400 py-8">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p>Presentación interactiva basada en el Trabajo Práctico 2.</p>
+            <p>&copy; 2025 - Grupo 7, UNGS.</p>
+        </div>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const vulnerabilityData = [
+        {
+            title: 'Desbordamiento de Búfer por `gets()`',
+            signal: 'SIGSEGV',
+            problem: 'La función `gets()` no verifica los límites del búfer de destino. Una entrada de texto más larga que el espacio asignado sobrescribe la memoria adyacente, causando una violación de segmento.',
+            solution: 'Reemplazar `gets()` por `fgets()`, que permite especificar el tamaño máximo a leer, previniendo el desbordamiento.'
+        },
+        {
+            title: 'Desbordamiento en `substring()`',
+            signal: 'SIGSEGV',
+            problem: 'La lógica para extraer subcadenas no validaba si la posición y la longitud solicitadas estaban dentro de los límites del string original, llevando a lecturas fuera de memoria.',
+            solution: 'Añadir validaciones de límites para la posición y la longitud antes de intentar copiar la subcadena.'
+        },
+        {
+            title: 'Desbordamiento de Enteros',
+            signal: 'SIGSEGV',
+            problem: 'Al proporcionar un número muy grande o negativo como posición, los cálculos internos para determinar la longitud de las subcadenas resultaban en valores incorrectos, causando desbordamientos.',
+            solution: 'Validar que la posición de inserción sea un entero positivo y esté dentro del rango válido antes de realizar cualquier operación.'
+        },
+        {
+            title: 'Stack Smashing Detected',
+            signal: 'SIGABRT',
+            problem: 'Este error es una consecuencia directa del desbordamiento de búfer. El sistema operativo detectó que una dirección de retorno en la pila fue sobrescrita y abortó el programa para prevenir una posible ejecución de código malicioso.',
+            solution: 'Corregir todas las validaciones de búfer para asegurar que ninguna escritura exceda los límites de los arrays asignados.'
+        }
+    ];
+
+    const listContainer = document.getElementById('vulnerabilities-list');
+    vulnerabilityData.forEach((vuln, index) => {
+        const card = document.createElement('div');
+        card.className = 'card bg-white rounded-lg shadow-md overflow-hidden cursor-pointer';
+        card.innerHTML = `
+            <div class="p-4 flex justify-between items-center" data-index="${index}">
+                <div>
+                    <h4 class="font-semibold text-slate-800">${vuln.title}</h4>
+                    <span class="text-xs font-mono py-0.5 px-1.5 rounded ${vuln.signal === 'SIGSEGV' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}">${vuln.signal}</span>
+                </div>
+                <span class="text-slate-400 transform transition-transform duration-300">&#9662;</span>
+            </div>
+            <div class="details-content bg-slate-50 p-4 border-t border-slate-200">
+                <p class="font-semibold mb-1">Problema:</p>
+                <p class="text-sm text-slate-600 mb-3">${vuln.problem}</p>
+                <p class="font-semibold mb-1">Solución:</p>
+                <p class="text-sm text-slate-600">${vuln.solution}</p>
+            </div>
+        `;
+        listContainer.appendChild(card);
+    });
+
+    listContainer.addEventListener('click', (e) => {
+        const header = e.target.closest('.p-4');
+        if (header) {
+            const content = header.nextElementSibling;
+            const arrow = header.querySelector('span:last-child');
+            const isVisible = content.classList.contains('show');
+            
+            // Close all others
+            document.querySelectorAll('.details-content.show').forEach(el => {
+                if(el !== content) {
+                    el.classList.remove('show');
+                    el.previousElementSibling.querySelector('span:last-child').style.transform = 'rotate(0deg)';
+                }
+            });
+
+            // Toggle current
+            content.classList.toggle('show');
+            arrow.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(180deg)';
+        }
+    });
+
+    const ctx = document.getElementById('vulnerabilitiesChart').getContext('2d');
+    const myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Desbordamiento por `gets()`', 'Error en `substring()`', 'Desbord. de Enteros', 'Stack Smashing'],
+            datasets: [{
+                label: 'Número de Crashes Detectados (simulado)',
+                data: [68, 45, 32, 51],
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.6)',
+                    'rgba(239, 68, 68, 0.6)',
+                    'rgba(239, 68, 68, 0.6)',
+                    'rgba(249, 115, 22, 0.6)'
+                ],
+                borderColor: [
+                    'rgba(239, 68, 68, 1)',
+                    'rgba(239, 68, 68, 1)',
+                    'rgba(239, 68, 68, 1)',
+                    'rgba(249, 115, 22, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: { display: false }
+                },
+                y: {
+                    grid: { color: '#e2e8f0' }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 12 },
+                    padding: 10,
+                    cornerRadius: 4,
+                    displayColors: false
+                }
+            }
+        }
+    });
+
+    const navLinks = document.querySelectorAll('a.nav-link');
+    const sections = document.querySelectorAll('section');
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                navLinks.forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href').substring(1) === entry.target.id);
+                });
+            }
+        });
+    }, { rootMargin: "-50% 0px -50% 0px" });
+
+    sections.forEach(section => {
+        observer.observe(section);
+    });
+});
+</script>
+</body>
+</html>
